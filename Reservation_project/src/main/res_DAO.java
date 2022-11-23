@@ -19,14 +19,8 @@ public class res_DAO {
 	ResultSet rs = null;
 	
 	
-	public ArrayList<res_VO> select(){
-		ArrayList<res_VO> vo = new ArrayList<>();
-		
-		return vo;
-	}
-	
-	//객실정보 확인 메서드
-	public void checkRms() {
+	public ArrayList<RmsVO> select(){
+		ArrayList<RmsVO> list = new ArrayList<>();
 		
 		String sql = "select * from rooms"; //SQL 문장
 		
@@ -36,14 +30,35 @@ public class res_DAO {
 			pstmt = conn.prepareStatement(sql);
 			rs = pstmt.executeQuery();
 			
-			while(rs.next())
+			while(rs.next()) {
+				
+				int room_num = rs.getInt("room_num");
+				String room_type = rs.getString("room_type");
+				String room_size = rs.getString("room_size");
+				int price = rs.getInt("price");
+				int person_max = rs.getInt("person_max");
+				
+				RmsVO vo = new RmsVO(room_num, room_type, room_size, price, person_max);
+				
+				list.add(vo);
+			}
 			
 		} catch (Exception e) {
 			// TODO: handle exception
 			System.out.println("값 읽어오기 실패");
 			e.getMessage();
+		}finally {
+			try {
+				conn.close();
+				pstmt.close();
+				rs.close();
+			} catch (Exception e2) {
+				// TODO: handle exception
+				e2.getMessage();
+			}
 		}
-		
-	}
 	
+		
+		return list;
+	}
 }

@@ -1,5 +1,6 @@
 package main;
 
+import java.util.ArrayList;
 import java.util.Scanner;
 
 public class MainClass {
@@ -38,6 +39,11 @@ public class MainClass {
 			switch (menu) {
 			case 1:
 				System.out.println("객실 정보");
+				res_DAO dao = new res_DAO();
+				ArrayList<RmsVO> list = dao.select();
+				for(RmsVO vo : list) {
+					System.out.println(vo);
+				}
 				break;
 
 			case 2:
