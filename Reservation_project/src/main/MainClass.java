@@ -11,6 +11,7 @@ public class MainClass {
 
 	public static void main(String[] args) {
 
+		res_DAO dao = new res_DAO();
 		Scanner scan = new Scanner(System.in);
 		int menu = 0;
 		boolean flag = true;
@@ -39,8 +40,7 @@ public class MainClass {
 			switch (menu) {
 			case 1:
 				System.out.println("객실 정보");
-				res_DAO dao = new res_DAO();
-				ArrayList<RmsVO> list = dao.select();
+				ArrayList<RmsVO> list = dao.showRooms();
 				for(RmsVO vo : list) {
 					System.out.println(vo);
 				}
@@ -51,7 +51,9 @@ public class MainClass {
 				break;
 
 			case 3:
-				System.out.println("예약 조회");
+				
+				dao.reservationCheck();
+				
 				break;
 			
 			case 4:
