@@ -53,9 +53,14 @@ public class MainClass {
 			case 3:
 				System.out.println("예약 조회");
 				break;
-
-			default:
+			
+			case 4:
 				System.out.println("종료");
+				
+			case 486: //관리자모드
+				
+			default:
+				
 				flag = false;
 				break;
 			}
