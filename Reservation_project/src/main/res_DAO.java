@@ -74,26 +74,30 @@ public class res_DAO {
 		try {
 			resnum2 = Integer.parseInt(tmp); //예약번호를 String으로 입력받아 int형 변수에 저장
 			
-		} catch (Exception e) {
+		} catch (Exception e) { //숫자가 아닌 다른 문자 입력받으면 오류
 			System.out.println("숫자만 입력해주세요");
 		}
 		
-		
-		String sql = "select r.reservation_num,\r\n"
-				+ "          g.name,\r\n"
-				+ "          g.phone_num,\r\n"
-				+ "          g.email,\r\n"
-				+ "          g.nation,\r\n"
-				+ "          r.room_num,\r\n"
-				+ "          r.numofpeople,\r\n"
+		//reservation, guest, rooms 테이블을 조인하여 원하는 데이터 선택
+		//예약번호 부분은 ? 표시
+		String sql = "select r.reservation_num, -- 예약번호\r\n"
 				+ "          to_char(r.arrival_date, 'yyyy-mm-dd') as arrDate,\r\n"
 				+ "          to_char(r.departure_date, 'yyyy-mm-dd') as depDate,\r\n"
-				+ "          r.payment\r\n"
-				+ "from guest g\r\n"
-				+ "inner join ((select *\r\n"
-				+ "                from reservation\r\n"
-				+ "                where reservation_num = ?) r)\r\n"
-				+ "on r.guest_id = g.guest_id"; // sql문
+				+ "          r.room_num,\r\n"
+				+ "          ro.room_type,\r\n"
+				+ "          r.numofpeople,\r\n"
+				+ "          r.payment,\r\n"
+				+ "          ro.price,\r\n"
+				+ "          g.name,\r\n"
+				+ "			 g.phone_num,\r\n"
+				+ "          g.email\r\n"
+				+ "from reservation r\r\n"
+				+ "join rooms ro\r\n"
+				+ "on  r.room_num = ro.room_num\r\n"
+				+ "join guest g\r\n"
+				+ "on r.guest_id = g.guest_id\r\n"
+				+ "where reservation_num = ?";
+		
 		// throws exception을 던지니까 try-catch
 		try {
 			//드라이버 로드
@@ -102,66 +106,71 @@ public class res_DAO {
 			//connection
 			conn = DriverManager.getConnection(URL, UID, UPW);
 			
-			//statement 객체
+			//statement 객체생성후 쿼리문을 pstmt에 저장
 			pstmt = conn.prepareStatement(sql);
 			
 			//값 세팅 - 입력받은 객실 번호
 			pstmt.setInt(1, resnum2);
 			
+			rs = pstmt.executeQuery(); //pstmt의 쿼리를 실행하여 ResultSet rs에 넣음
+
+				
+			int count = 0; //데이터가 있는지 확인하는 변수
+			
+			// sql문 실행
+			while(rs.next()) {
+				int reservation_num = rs.getInt("reservation_num");
+				String arrDate = rs.getString("arrDate");
+				String depDate = rs.getString("depDate");
+				int room_num = rs.getInt("room_num");
+				String room_type = rs.getString("room_type");
+				int numofpeople = rs.getInt("numofpeople");
+				String payment = rs.getNString("payment");
+				int price = rs.getInt("price");
+				String name = rs.getString("name");
+				String phone_num = rs.getString("phone_num");
+				String email = rs.getString("email");
+				
+				System.out.println("===========  예약 조회 ============");
+				System.out.println("============ 객실 정보 ============");
+				System.out.printf("예약번호: %d%n"
+								+ "체크인날짜: %s%n"
+								+ "체크아웃날짜: %s%n"
+								+ "객실번호: %d%n"
+								+ "객실타입: %s%n"
+								+ "인원수: %d인%n"
+								+ "결제방법: %s%n"
+								+ "가격: %d원%n"
+						,reservation_num, arrDate, depDate, room_num, room_type, numofpeople, payment, price);
+				System.out.println("=========== 예약자 정보 ============");
+				System.out.printf("이름: %s%n"
+								+ "전화전호: %s%n"
+								+ "이메일: %s%n"
+								,name, phone_num, email);
+				count = 1; 
+				}
+			
+			
 			try {
-				rs = pstmt.executeQuery();
-				if(rs.wasNull()) {
+				if(count != 1) { //데이터 값이 있으면
 					throw new Exception();
 				}
 			} catch (Exception e) {
 				System.out.println("등록되지 않은 예약번호 입니다.");
 				reservationCheck();
 			}
-			
-			
-			// sql문 실행
-			while(rs.next()) {
-				System.out.println("2");
-				int reservation_num = rs.getInt("reservation_num");
-				String name = rs.getString("name");
-				String phone_num = rs.getString("phone_num");
-				String email = rs.getString("email");
-				String nation = rs.getString("nation");
-				int room_num = rs.getInt("room_num");
-				int numofpeople = rs.getInt("numofpeople");
-				String arrDate = rs.getString("arrDate");
-				String depDate = rs.getString("depDate");
-				String payment = rs.getNString("payment");
-				
-				System.out.println("===========  예약 조회 ============");
-				System.out.println("=========== 예약자 정보 ============");
-				System.out.printf("예약번호: %d%n"
-								+ "이름: %s%n"
-								+ "전화전호: %s%n"
-								+ "이메일: %s%n"
-								+ "국적: %s%n"
-								,reservation_num, name, phone_num, email, nation);
-				System.out.println("============ 객실 정보 ============");
-				System.out.printf("객실 번호: %d%n"
-						+ "인원수: %d명%n"
-						+ "예약날짜: %s%n"
-						+ "퇴실날짜: %s%n"
-						+ "결제방법: %s%n"
-						,room_num, numofpeople, arrDate, depDate, payment);
-			}
 
 			
 		} catch (Exception e) {
 			e.printStackTrace();
+		
 			
 		} finally {
-			
 			try { //객체 계속 쌓여서 close 필수로 해줌
 				conn.close();
 				pstmt.close();
 				rs.close();
 			} catch (Exception e2) {
-				
 			}
 		
 		}
