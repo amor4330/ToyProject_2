@@ -4,6 +4,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Scanner;
@@ -65,23 +66,15 @@ public class res_DAO {
 
 	public void makeRes() {
 
-		//날짜 입력받을 임시변수 String
-		String tmp = "";
 		//체크인 날짜 입력받기
 		System.out.println("입실하실 날짜를 입력해주세요.(yyyy-mm-dd 형식으로 입력)");
-		v_date(tmp);
-		String arrDate = tmp;
+		String arrDate = v_date();
 		//체크아웃 날짜 입력받기
 		System.out.println("퇴실하실 날짜를 입력해주세요.(yyyy-mm-dd 형식으로 입력)");
-		v_date(tmp);
-		String depDate = tmp;
-		System.out.println(arrDate);
-		System.out.println(depDate);
+		String depDate = v_date();
 
 		// 체크인. 체크아웃 날짜 유효성 검사, 체크아웃이 체크인보다 빠르면 예외발생
 		try {
-			System.out.println(depDate);
-			System.out.println(arrDate);
 			LocalDate tmpArr = LocalDate.parse(arrDate);
 			LocalDate tmpDep = LocalDate.parse(depDate);
 			if (tmpDep.isBefore(tmpArr) || tmpDep.isEqual(tmpArr)) {
@@ -104,22 +97,40 @@ public class res_DAO {
 		}
 		
 		//예약가능한 객실을 선택
-		selectRoom(avRms);
+		int room_num = selectRoom(avRms);
 		
 		//고객 정보를 입력받기
+			//이름 입력
+		System.out.println("예약하실 분의 성함을 입력하세요.");
+		String name = scan.nextLine();
+			//연락처 유효성 검사 후 입력
+		String phone_num = v_phoneNum();
+			//이메일 유효성 검사 후 입력
+		String email = v_email();
+			//국적 입력
+		System.out.println("국적을 입력하세요.");
+		String nation = scan.nextLine();
+			//숙박 인원 수 입력받기
+		int numOfPeople = v_numpeople(room_num);
+			//결제방법 입력받기
+		System.out.println("결제방법을 선택하세요. 현금/카드");
+		String payment = scan.nextLine();
+		
+		insertGuest(name, phone_num, email, nation, 
+				room_num, numOfPeople, arrDate, depDate, payment);
 		
 		
 		
 
 	}// makeRes 끝
 	
-	//객실 선택 메서드
-	//잘못된 값 입력 시 예외 발생 후 재귀호출하여 다시 입력받음
-	public void selectRoom(ArrayList<Integer> avRms) {
+	//객실 선택 메서드 - 잘못된 값 입력 시 예외 발생 후 재귀호출하여 다시 입력받음
+		public int selectRoom(ArrayList<Integer> avRms) {
+		int room_num = 0;
 		System.out.println("예약하실 객실을 선택하세요.");
 		String strtmp = scan.nextLine();
 		try {
-			int room_num = Integer.parseInt(strtmp);
+			room_num = Integer.parseInt(strtmp);
 			boolean check = false;
 			for(int i = 0; i < avRms.size(); i++) {
 				if(avRms.get(i) == room_num) {
@@ -139,28 +150,99 @@ public class res_DAO {
 			selectRoom(avRms);
 			e.getMessage();
 		}
+		
+		return room_num;
 	}
 	
-	public void v_date(String tmp) {
-		System.out.println(tmp);
-		tmp = scan.nextLine();
-		try {
-			int m = Integer.parseInt(tmp.substring(5, 7));
-			int d = Integer.parseInt(tmp.substring(8));
-			if (!(1 <= m && m <= 12)) { // 만약 월을 입력한 부분이 1~12가 아니라면 예외처리
-				throw new Exception();
+	//유효성 검사 메서드들
+		//예약 날짜 유효성 검사 메서드
+		public String v_date() {
+			String tmp = scan.nextLine();
+			try {
+				int m = Integer.parseInt(tmp.substring(5, 7));
+				int d = Integer.parseInt(tmp.substring(8));
+				if (!(1 <= m && m <= 12)) { // 만약 월을 입력한 부분이 1~12가 아니라면 예외처리
+					throw new Exception();
+				}
+				if (!(1 <= d && d <= 31)) { // 1~31 사이의 값이 아니면 예외처리
+					throw new Exception();
+				}
+			} catch (Exception e) {
+				System.out.println("올바른 날짜를 입력해주세요.");
+				v_date();
 			}
-			if (!(1 <= d && d <= 31)) { // 1~31 사이의 값이 아니면 예외처리
-				throw new Exception();
-			}
-		} catch (Exception e) {
-			System.out.println("올바른 날짜를 입력해주세요.");
-			v_date(tmp);
+			
+			return tmp;
 		}
+		//연락처 유효성 검사 메서드
+		public String v_phoneNum() {
+			System.out.println("연락처를 입력하세요. ex)010-0000-0000");
+			System.out.print("010-");
+			String phone_num = scan.nextLine();
+			try {
+				int length = phone_num.length();
+				if(length == 8) {
+					if(phone_num.charAt(3) != '-') {
+						throw new Exception();
+					}
+				}else if(length == 9) {
+					if(phone_num.charAt(4) != '-') {
+						throw new Exception();
+					}
+				}else {
+					throw new Exception();
+				}
+			}catch (Exception e) {
+				System.out.println("올바른 전화번호 양식을 입력하세요.");
+				v_phoneNum();
+			}
+			return phone_num;
+		}
+		//이메일 유효성 검사 메서드
+		public String v_email() {
+			System.out.println("이메일을 입력하세요.(gmail, naver, kakao만 허용");
+			String email = scan.nextLine();
+			try {
+				String[] pattern = {"@naver.com", "@gmail.com", "@kakao.com"};
+				
+				for(int i = 0; i < pattern.length; i++) {
+					email = email.replace(pattern[i], "1");
+					if(email.indexOf("1") != email.length()-1) {
+						throw new Exception();
+					}
+				}
+			} catch (Exception e) {
+				// TODO: handle exception
+				System.out.println("올바른 이메일을 입력하세요.");
+				v_email();
+			}
+			return email;
+		}
+		//인원선택 유효성 검사 메서드
+		public int v_numpeople(int room_num) {
+		int numOfPeople = 0;
+		try {
+			System.out.println("투숙하실 인원을 선택하세요");
+			String tmp = scan.nextLine();
+			numOfPeople = Integer.valueOf(tmp);
+			if(room_num <=103 && numOfPeople > 3) {
+				System.out.println("투숙 가능한 인원을 초과하였습니다.");
+				throw new Exception();
+			}else if(room_num == 104 && numOfPeople > 4){
+				System.out.println("투숙 가능한 인원을 초과하였습니다.");
+				throw new Exception();
+			}
+		} catch (NumberFormatException e1) {
+			System.out.println("문자가 아닌 숫자로 입력하세요.");
+			v_numpeople(room_num);
+		}catch (Exception e2) {
+			v_numpeople(room_num);
+		}
+		return numOfPeople;
 	}
 	
 	//예약되어있는 방을 보여주는 메서드
-	public ArrayList<availVO> showAvailRms(String arrDate, String depDate) {
+		public ArrayList<availVO> showAvailRms(String arrDate, String depDate) {
 		ArrayList<availVO> list = new ArrayList<>();
 
 		String sql = "select r.room_num, r.room_type, r.room_size, r.price, r.person_max\r\n"
@@ -217,15 +299,141 @@ public class res_DAO {
 
 		return list;
 	}
+	
+	//Guest 테이블 insert
+		public void insertGuest(String name, String phone_num, String email, String nation
+							,int room_num, int numOfPeople, String arrDate, String depDate, String payment){
 
-	public void getGstInfo() {
+			String sql = "insert into guest "
+					+ "values (lpad(guest_seq.nextval, 5, '0') as guest_id,"
+					+ " ?, ?, ?, ?)";
+			
+			try {
+				Class.forName("oracle.jdbc.driver.OracleDriver");
+				conn = DriverManager.getConnection(URL, UID, UPW);
+				pstmt = conn.prepareStatement(sql);
+				
+				pstmt.setString(1, name);
+				pstmt.setString(2, phone_num);
+				pstmt.setString(3, email);
+				pstmt.setString(4, nation);
+				
+				int result = pstmt.executeUpdate();
+				
+				
+				if(result == 1) {
+					System.out.println("예약이 생성되었습니다.");
+				}
+				
+			} catch (Exception e) {
+				e.getMessage();
+			} 
+			
+			String sql2 = "insert into reservation "
+					+ "values (reservation_seq.nextval, "
+					+ "lpad(guest_seq.currval, 5, '0'), "
+					+ "?, ?, ?, ?, ?)";
+			
+			try {
+				Class.forName("oracle.jdbc.driver.OracleDriver");
+				conn = DriverManager.getConnection(URL, UID, UPW);
+				pstmt = conn.prepareStatement(sql2);
+				
+				pstmt.setInt(1, room_num);
+				pstmt.setInt(2, numOfPeople);
+				pstmt.setString(3, arrDate);
+				pstmt.setString(4, depDate);
+				pstmt.setString(5, payment);
+				
+				int result = pstmt.executeUpdate();
+				
+				if(result == 1) {
+					System.out.println("예약정보 업데이트");
+				}
+				
+			} catch (Exception e) {
+				e.printStackTrace();
+				e.getMessage();
+			}finally {
+				try {
+					conn.close();
+					pstmt.close();
+				} catch (SQLException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+			
+			
 		
-		System.out.println("예약하실 분의 성함을 입력하세요.");
-		String name = scan.nextLine();
-		System.out.println("연락처를 입력하세요.");
-		System.out.print("010-");
-		String phone_num = scan.nextLine();
-		
-	}
+			
+		}
+
+	//Reservaion 테이블 insert
+		public void insertRes(int room_num, int numOfPeople, String arrDate, String depDate, String payment) {
+			String sql = "insert into reservation "
+					+ "values (reservation_seq.nextval, "
+					+ "lpad(guest_seq.currval, 5, '0'), "
+					+ "?, ?, ?, ?, ?)";
+			
+			try {
+				Class.forName("oracle.jdbc.driver.OracleDriver");
+				conn = DriverManager.getConnection(URL, UID, UPW);
+				pstmt = conn.prepareStatement(sql);
+				
+				pstmt.setInt(1, room_num);
+				pstmt.setInt(2, numOfPeople);
+				pstmt.setString(3, arrDate);
+				pstmt.setString(4, depDate);
+				pstmt.setString(5, payment);
+				
+				pstmt.executeUpdate();
+				
+			} catch (Exception e) {
+				e.printStackTrace();
+			} finally {
+				try {
+					conn.close();
+					pstmt.close();
+				} catch (SQLException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+			
+			
+			
+			
+		}
+	//Reserved room 테이블 insert 
+		public void insertResRm(String arrDate, String depDate, int room_num) {
+			String sql = "insert into reserved_room "
+					+ "values (?, ?, ?)";
+			
+			try {
+				Class.forName("oracle.jdbc.driver.OracleDriver");
+				conn = DriverManager.getConnection(URL, UID, UPW);
+				pstmt = conn.prepareStatement(sql);
+				
+				pstmt.setString(1, arrDate);
+				pstmt.setString(3, depDate);
+				pstmt.setInt(2, room_num);
+				
+				pstmt.executeUpdate();
+				
+			} catch (Exception e) {
+				e.printStackTrace();
+			} finally {
+				try {
+					conn.close();
+					pstmt.close();
+				} catch (SQLException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+			
+		}
+
 
 }// class
