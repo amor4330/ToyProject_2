@@ -141,7 +141,7 @@ public class res_DAO {
 								+ "인원수: %d인%n"
 								+ "결제방법: %s%n"
 								+ "가격: %d원%n"
-						,reservation_num, arrDate, depDate, room_num, room_type, numofpeople, payment, price);
+						        ,reservation_num, arrDate, depDate, room_num, room_type, numofpeople, payment, price);
 				System.out.println("=========== 예약자 정보 ============");
 				System.out.printf("이름: %s%n"
 								+ "전화전호: %s%n"
