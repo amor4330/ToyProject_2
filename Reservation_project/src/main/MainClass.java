@@ -40,7 +40,7 @@ public class MainClass {
 			case 1:
 				System.out.println("객실 정보");
 				res_DAO dao = new res_DAO();
-				ArrayList<RmsVO> list = dao.select();
+				ArrayList<RmsVO> list = dao.showRooms();
 				for(RmsVO vo : list) {
 					System.out.println(vo);
 				}
@@ -48,6 +48,8 @@ public class MainClass {
 
 			case 2:
 				System.out.println("예약");
+				res_DAO dao2 = new res_DAO();
+				dao2.makeRes();
 				break;
 
 			case 3:

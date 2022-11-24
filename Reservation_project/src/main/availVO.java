@@ -1,17 +1,17 @@
 package main;
 
-public class RmsVO {
+public class availVO {
 	private int room_num;
 	private String room_type;
 	private String room_size;
 	private int price;
 	private int person_max;
 	
-	public RmsVO() {
+	public availVO() {
 		// TODO Auto-generated constructor stub
 	}
 
-	public RmsVO(int room_num, String room_type, String room_size, int price, int person_max) {
+	public availVO(int room_num, String room_type, String room_size, int price, int person_max) {
 		super();
 		this.room_num = room_num;
 		this.room_type = room_type;
