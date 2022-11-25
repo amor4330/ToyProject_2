@@ -51,9 +51,7 @@ public class MainClass {
 				break;
 
 			case 3:
-				
 				dao.reservationCheck();
-				
 				break;
 			
 			case 4:

@@ -147,7 +147,8 @@ public class res_DAO {
 								+ "전화전호: %s%n"
 								+ "이메일: %s%n"
 								,name, phone_num, email);
-				count = 1; 
+				count = 1;
+				
 				}
 			
 			
