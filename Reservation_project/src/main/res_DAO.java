@@ -25,7 +25,7 @@ public class res_DAO {
 
 		ArrayList<RmsVO> list = new ArrayList<>();
 
-		String sql = "select * from rooms"; // SQL 문장
+		String sql = "select * from rooms order by room_num"; // SQL 문장
 
 		try {
 			Class.forName("oracle.jdbc.driver.OracleDriver");
@@ -69,10 +69,19 @@ public class res_DAO {
 		//체크인 날짜 입력받기
 		System.out.println("입실하실 날짜를 입력해주세요.(yyyy-mm-dd 형식으로 입력)");
 		String arrDate = v_date();
+		try {
+			LocalDate tmpArr = LocalDate.parse(arrDate);
+			if(tmpArr.isBefore(LocalDate.now())){
+				throw new Exception();
+			}
+		} catch (Exception e) {
+			System.out.println("체크인 날짜를 올바르게 입력하세요.");
+			makeRes();
+		}
 		//체크아웃 날짜 입력받기
 		System.out.println("퇴실하실 날짜를 입력해주세요.(yyyy-mm-dd 형식으로 입력)");
 		String depDate = v_date();
-
+		
 		// 체크인. 체크아웃 날짜 유효성 검사, 체크아웃이 체크인보다 빠르면 예외발생
 		try {
 			LocalDate tmpArr = LocalDate.parse(arrDate);
@@ -116,9 +125,9 @@ public class res_DAO {
 		System.out.println("결제방법을 선택하세요. 현금/카드");
 		String payment = scan.nextLine();
 		
-		insertGuest(name, phone_num, email, nation, 
-				room_num, numOfPeople, arrDate, depDate, payment);
-		
+		insertGuest(name, phone_num, email, nation);
+		insertRes(room_num,numOfPeople, arrDate, depDate, payment);
+		insertResRm(arrDate, depDate, room_num);
 		
 		
 
@@ -127,7 +136,7 @@ public class res_DAO {
 	//객실 선택 메서드 - 잘못된 값 입력 시 예외 발생 후 재귀호출하여 다시 입력받음
 		public int selectRoom(ArrayList<Integer> avRms) {
 		int room_num = 0;
-		System.out.println("예약하실 객실을 선택하세요.");
+		System.out.println("예약하실 객실번호를 선택하세요.");
 		String strtmp = scan.nextLine();
 		try {
 			room_num = Integer.parseInt(strtmp);
@@ -196,20 +205,21 @@ public class res_DAO {
 				System.out.println("올바른 전화번호 양식을 입력하세요.");
 				v_phoneNum();
 			}
-			return phone_num;
+			return "010-" + phone_num;
 		}
 		//이메일 유효성 검사 메서드
 		public String v_email() {
 			System.out.println("이메일을 입력하세요.(gmail, naver, kakao만 허용");
 			String email = scan.nextLine();
+			String tmp = email;
 			try {
 				String[] pattern = {"@naver.com", "@gmail.com", "@kakao.com"};
 				
 				for(int i = 0; i < pattern.length; i++) {
-					email = email.replace(pattern[i], "1");
-					if(email.indexOf("1") != email.length()-1) {
-						throw new Exception();
-					}
+					tmp = tmp.replace(pattern[i], ">");
+				}
+				if(tmp.indexOf(">") != tmp.length()-1) {
+					throw new Exception();
 				}
 			} catch (Exception e) {
 				// TODO: handle exception
@@ -301,11 +311,10 @@ public class res_DAO {
 	}
 	
 	//Guest 테이블 insert
-		public void insertGuest(String name, String phone_num, String email, String nation
-							,int room_num, int numOfPeople, String arrDate, String depDate, String payment){
+		public void insertGuest(String name, String phone_num, String email, String nation){
 
 			String sql = "insert into guest "
-					+ "values (lpad(guest_seq.nextval, 5, '0') as guest_id,"
+					+ "values (lpad(guest_seq.nextval, 5, '0'),"
 					+ " ?, ?, ?, ?)";
 			
 			try {
@@ -320,41 +329,13 @@ public class res_DAO {
 				
 				int result = pstmt.executeUpdate();
 				
-				
 				if(result == 1) {
 					System.out.println("예약이 생성되었습니다.");
 				}
 				
 			} catch (Exception e) {
-				e.getMessage();
-			} 
-			
-			String sql2 = "insert into reservation "
-					+ "values (reservation_seq.nextval, "
-					+ "lpad(guest_seq.currval, 5, '0'), "
-					+ "?, ?, ?, ?, ?)";
-			
-			try {
-				Class.forName("oracle.jdbc.driver.OracleDriver");
-				conn = DriverManager.getConnection(URL, UID, UPW);
-				pstmt = conn.prepareStatement(sql2);
-				
-				pstmt.setInt(1, room_num);
-				pstmt.setInt(2, numOfPeople);
-				pstmt.setString(3, arrDate);
-				pstmt.setString(4, depDate);
-				pstmt.setString(5, payment);
-				
-				int result = pstmt.executeUpdate();
-				
-				if(result == 1) {
-					System.out.println("예약정보 업데이트");
-				}
-				
-			} catch (Exception e) {
 				e.printStackTrace();
-				e.getMessage();
-			}finally {
+			} finally {
 				try {
 					conn.close();
 					pstmt.close();
@@ -363,17 +344,13 @@ public class res_DAO {
 					e.printStackTrace();
 				}
 			}
-			
-			
-		
-			
 		}
 
 	//Reservaion 테이블 insert
 		public void insertRes(int room_num, int numOfPeople, String arrDate, String depDate, String payment) {
-			String sql = "insert into reservation "
-					+ "values (reservation_seq.nextval, "
-					+ "lpad(guest_seq.currval, 5, '0'), "
+			String sql = "insert into reservation values "
+					+ "((lpad(reservation_seq.nextval, 5, '0')), "
+					+ "(select max(GUEST_id) from GUEST), "
 					+ "?, ?, ?, ?, ?)";
 			
 			try {
@@ -400,7 +377,7 @@ public class res_DAO {
 					e.printStackTrace();
 				}
 			}
-			
+			System.out.println("고객님의 예약번호는 " + getResNum() + "입니다.");
 			
 			
 			
@@ -434,6 +411,272 @@ public class res_DAO {
 			}
 			
 		}
+	//예약번호 반환하는 메서드
+		public String getResNum() {
+			String sql = "select max(reservation_num) as resnum from reservation";
+			String resnum = "";
+			
+			try {
+				Class.forName("oracle.jdbc.driver.OracleDriver");
+				conn = DriverManager.getConnection(URL, UID, UPW);
+				pstmt = conn.prepareStatement(sql);
+				rs = pstmt.executeQuery();
+				
+				while(rs.next()) {
+					resnum = rs.getString("resnum");
+				}
+				
+			} catch (Exception e) {
+				e.printStackTrace();
+			} finally {
+				try {
+					conn.close();
+					pstmt.close();
+					rs.close();
+				} catch (SQLException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+			
+			return resnum;
+		}
 
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	   //예약 조회 메서드
+	   public void reservationCheck() {
+	      
+	      System.out.println("예약 번호 입력> ");
+	      String resnum2 = scan.nextLine();
+	      
+	      try {
+	    	 
+	         int tmp = Integer.parseInt(resnum2); //예약번호를 String으로 입력받아 int형 변수에 저장
+	         
+	      } catch (Exception e) { //숫자가 아닌 다른 문자 입력받으면 오류
+	         System.out.println("숫자만 입력해주세요");
+	      }
+	      
+	      //reservation, guest, rooms 테이블을 조인하여 원하는 데이터 선택
+	      //예약번호 부분은 ? 표시
+	      String sql = "select r.reservation_num, -- 예약번호\r\n"
+	            + "          to_char(r.arrival_date, 'yyyy-mm-dd') as arrDate,\r\n"
+	            + "          to_char(r.departure_date, 'yyyy-mm-dd') as depDate,\r\n"
+	            + "          r.room_num,\r\n"
+	            + "          ro.room_type,\r\n"
+	            + "          r.numofpeople,\r\n"
+	            + "          r.payment,\r\n"
+	            + "          ro.price,\r\n"
+	            + "          g.name,\r\n"
+	            + "          g.phone_num,\r\n"
+	            + "          g.email\r\n"
+	            + "from reservation r\r\n"
+	            + "join rooms ro\r\n"
+	            + "on  r.room_num = ro.room_num\r\n"
+	            + "join guest g\r\n"
+	            + "on r.guest_id = g.guest_id\r\n"
+	            + "where reservation_num = ?";
+	      
+	      // throws exception을 던지니까 try-catch
+	      try {
+	         //드라이버 로드
+	         Class.forName("oracle.jdbc.driver.OracleDriver");
+	         
+	         //connection
+	         conn = DriverManager.getConnection(URL, UID, UPW);
+	         
+	         //statement 객체생성후 쿼리문을 pstmt에 저장
+	         pstmt = conn.prepareStatement(sql);
+	         
+	         //값 세팅 - 입력받은 객실 번호
+	         pstmt.setString(1, resnum2);
+	         
+	         rs = pstmt.executeQuery(); //pstmt의 쿼리를 실행하여 ResultSet rs에 넣음
 
+	            
+	         int count = 0; //데이터가 있는지 확인하는 변수
+	         
+	         // sql문 실행
+	         while(rs.next()) {
+	            String reservation_num = rs.getString("reservation_num");
+	            String arrDate = rs.getString("arrDate");
+	            String depDate = rs.getString("depDate");
+	            int room_num = rs.getInt("room_num");
+	            String room_type = rs.getString("room_type");
+	            int numofpeople = rs.getInt("numofpeople");
+	            String payment = rs.getNString("payment");
+	            int price = rs.getInt("price");
+	            String name = rs.getString("name");
+	            String phone_num = rs.getString("phone_num");
+	            String email = rs.getString("email");
+	            
+	            System.out.println("============ 예약 조회 ============");
+	            System.out.println("============ 객실 정보 ============");
+	            System.out.printf("예약번호: %s%n"
+	                        + "체크인날짜: %s%n"
+	                        + "체크아웃날짜: %s%n"
+	                        + "객실번호: %d%n"
+	                        + "객실타입: %s%n"
+	                        + "인원수: %d인%n"
+	                        + "결제방법: %s%n"
+	                        + "가격: %d원%n"
+	                          ,reservation_num, arrDate, depDate, room_num, room_type, numofpeople, payment, price);
+	            System.out.println("=========== 예약자 정보 ============");
+	            System.out.printf("이름: %s%n"
+	                        + "전화전호: %s%n"
+	                        + "이메일: %s%n"
+	                        ,name, phone_num, email);
+	            count = 1; 
+	            }
+	         
+	         
+	         try {
+	            if(count != 1) { //데이터 값이 있으면
+	               throw new Exception();
+	            }
+	         } catch (Exception e) {
+	            System.out.println("등록되지 않은 예약번호 입니다.");
+	            reservationCheck();
+	         }
+
+	         
+	      } catch (Exception e) {
+	         e.printStackTrace();
+	      
+	         
+	      } finally {
+	         try { //객체 계속 쌓여서 close 필수로 해줌
+	            conn.close();
+	            pstmt.close();
+	            rs.close();
+	         } catch (Exception e2) {
+	         }
+	      
+	      }
+	   }// 메서드 끝	
+		
+		/////////////////////////////////////////////////////////////////////////////////////////////////////////////////		
+	   public ArrayList<resVO> res_list(){ //전체예약내역
+	         ArrayList<resVO> list1 = new ArrayList<>();
+	         
+	         String sql = "select reservation_num, guest_id, \r\n"
+	         		+ "    (select name from guest g where g.guest_id = r.guest_id) as name,\r\n"
+	         		+ "    room_num, numofpeople, arrival_date, departure_date, payment\r\n"
+	         		+ "from reservation r\r\n"
+	         		+ "order by arrival_date, room_num"; //SQL 문장
+	         
+	         try {
+	            Class.forName("oracle.jdbc.driver.OracleDriver");
+	            conn = DriverManager.getConnection(URL, UID, UPW);
+	            pstmt = conn.prepareStatement(sql);
+	            
+	            rs = pstmt.executeQuery();
+	            
+	            
+	            while(rs.next()) {
+	               
+	               String resNum = rs.getString("reservation_num");
+	               String guest_id = rs.getString("guest_id");
+	               String name = rs.getString("name");
+	               int room_num = rs.getInt("room_num");
+	               int numofpeople = rs.getInt("numofpeople");
+	               String arrDate  = rs.getString("arrival_date");
+	               String depDate = rs.getString("departure_date");
+	               String payment = rs.getString("payment");
+	               resVO vo1 = new resVO(resNum, guest_id, name, room_num, numofpeople, arrDate, depDate, payment);
+	               
+	               list1.add(vo1);
+	            }
+	            
+	            
+	         } catch (Exception e) {
+	            // TODO: handle exception
+	            System.out.println("값 읽어오기 실패");
+	            e.getMessage();
+	         }finally {
+	            try {
+	               conn.close();
+	               pstmt.close();
+	               rs.close();
+	            } catch (Exception e2) {
+	               // TODO: handle exception
+	               e2.getMessage();
+	            }
+	         }
+	      
+	         
+	         return list1;
+	         
+	         
+	      }
+	      
+
+       public ArrayList<TodayVO> today_list(){ //오늘 예약 내역
+         ArrayList<TodayVO> list2 = new ArrayList<>();
+         
+         String sql = "select reservation_num as resNum,\r\n"
+               + "       g.guest_id,\r\n"
+               + "       g.name,\r\n"
+               + "       g.phone_num,\r\n"
+               + "       g.email,\r\n"
+               + "       r.room_num,\r\n"
+               + "       r.numofpeople,\r\n"
+               + "       to_char(r.arrival_date)as arrDate,\r\n"
+               + "       to_char(r.departure_Date) as depDate,\r\n"
+               + "       r.payment  \r\n"
+               + "from guest g\r\n"
+               + "inner join reservation r\r\n"
+               + "on g.guest_id = r.guest_id\r\n"
+               + "left outer join reserved_room rr\r\n"
+               + "on r.arrival_date = rr.arrival_date\r\n"
+               + "where to_char(r.arrival_date) = sysdate"; //SQL 문장
+         
+         try {
+            Class.forName("oracle.jdbc.driver.OracleDriver");
+            conn = DriverManager.getConnection(URL, UID, UPW);
+            pstmt = conn.prepareStatement(sql);
+            
+            rs = pstmt.executeQuery();
+            
+            
+            while(rs.next()) {
+               
+               String resNum = rs.getString("resNum");
+               String guest_id = rs.getString("guest_id");
+               String name = rs.getString("name");
+               String phone_num = rs.getString("phone_num");
+               String email = rs.getString("email");
+               int room_num = rs.getInt("room_num");
+               int numofpeople = rs.getInt("numofpeople");
+               String arrDate  = rs.getString("arrDate");
+               String depDate = rs.getString("depDate");
+               String payment = rs.getString("payment");
+               TodayVO vo2 = new TodayVO(resNum, guest_id, name, phone_num, email, room_num, numofpeople, arrDate, depDate, payment);
+               
+               list2.add(vo2);
+            }
+            
+            
+         } catch (Exception e) {
+            // TODO: handle exception
+            System.out.println("값 읽어오기 실패");
+            e.printStackTrace();
+         }finally {
+            try {
+               conn.close();
+               pstmt.close();
+               rs.close();
+            } catch (Exception e2) {
+               // TODO: handle exception
+               e2.getMessage();
+            }
+         }
+      
+         
+         return list2;
+         
+         
+      }
+	
+		
 }// class
